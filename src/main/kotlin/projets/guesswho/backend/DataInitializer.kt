@@ -1,5 +1,6 @@
 package projets.guesswho.backend
 
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.core.io.ClassPathResource
@@ -13,7 +14,8 @@ data class CharacterSeedData(val characters: List<String>)
 @Component
 class DataInitializer(
     private val characterRepository: CharacterRepository,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    @Value("\${app.base-url}") private val baseUrl: String
 ) : ApplicationRunner {
 
     override fun run(args: ApplicationArguments) {
@@ -21,7 +23,7 @@ class DataInitializer(
         val data = objectMapper.readValue(resource.inputStream, CharacterSeedData::class.java)
 
         data.characters.forEach { name ->
-            val imageUrl = "http://localhost:8080/images/${name.lowercase().replace(" ", "_")}.png"
+            val imageUrl = "$baseUrl/images/${name.lowercase().replace(" ", "_")}.png"
             val existing = characterRepository.findByName(name)
             if (existing == null) {
                 characterRepository.save(Character(name = name, imageUrl = imageUrl))
