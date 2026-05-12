@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Guess Who - Test WebSocket</title>
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7/bundles/stomp.umd.min.js"></script>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; }
+        input, button { padding: 8px; margin: 4px 0; width: 100%; box-sizing: border-box; }
+        button { cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 4px; }
+        button:disabled { background: #ccc; }
+        #log { border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: auto; font-family: monospace; font-size: 13px; }
+        .section { margin-bottom: 20px; }
+        h3 { margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+    <h2>Guess Who — Test WebSocket</h2>
+
+    <div class="section">
+        <h3>1. Connexion</h3>
+        <input id="token" type="text" placeholder="Bearer token JWT" />
+        <input id="gameCode" type="text" placeholder="Code de la partie" />
+        <button id="connectBtn" onclick="connect()">Se connecter</button>
+        <button id="disconnectBtn" onclick="disconnect()" disabled>Se déconnecter</button>
+    </div>
+
+    <div class="section">
+        <h3>2. Deviner</h3>
+        <input id="guessInput" type="number" placeholder="ID du personnage à deviner" disabled />
+        <button id="guessBtn" onclick="sendGuess()" disabled>Deviner</button>
+    </div>
+
+    <div class="section">
+        <h3>Log</h3>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        let client = null;
+
+        function log(msg) {
+            const el = document.getElementById('log');
+            el.innerHTML += `<div>${new Date().toLocaleTimeString()} — ${msg}</div>`;
+            el.scrollTop = el.scrollHeight;
+        }
+
+        function connect() {
+            const token = document.getElementById('token').value.trim();
+            const code = document.getElementById('gameCode').value.trim();
+            if (!token || !code) { log('Token et code requis.'); return; }
+
+            client = new StompJs.Client({
+                brokerURL: 'ws://localhost:8080/ws',
+                connectHeaders: { Authorization: 'Bearer ' + token },
+                onConnect: () => {
+                    log('Connecté au WebSocket');
+                    document.getElementById('connectBtn').disabled = true;
+                    document.getElementById('disconnectBtn').disabled = false;
+                    document.getElementById('guessInput').disabled = false;
+                    document.getElementById('guessBtn').disabled = false;
+
+                    client.subscribe(`/topic/game/${code}`, (msg) => {
+                        const body = JSON.parse(msg.body);
+                        log(`[BROADCAST] type=${body.type}`);
+                    });
+                    client.subscribe('/user/queue/game', (msg) => {
+                        const body = JSON.parse(msg.body);
+                        if (body.type === 'GAME_START') {
+                            log(`Partie démarrée ! Votre personnage : ${body.character.name}`);
+                        } else if (body.type === 'GAME_RESULT') {
+                            log(`${body.result === 'WIN' ? 'VICTOIRE' : 'DÉFAITE'} — Personnage adverse : ${body.opponentCharacter.name}`);
+                        }
+                    });
+                    log(`Abonné à /topic/game/${code} et /user/queue/game`);
+                },
+                onDisconnect: () => log('Déconnecté'),
+                onStompError: (frame) => log('Erreur STOMP : ' + frame.headers['message'])
+            });
+
+            client.activate();
+        }
+
+        function disconnect() {
+            client?.deactivate();
+            document.getElementById('connectBtn').disabled = false;
+            document.getElementById('disconnectBtn').disabled = true;
+            document.getElementById('guessInput').disabled = true;
+            document.getElementById('guessBtn').disabled = true;
+        }
+
+        function sendGuess() {
+            const code = document.getElementById('gameCode').value.trim();
+            const characterId = parseInt(document.getElementById('guessInput').value);
+            if (!characterId) return;
+
+            client.publish({
+                destination: `/app/game/${code}/guess`,
+                body: JSON.stringify({ characterId })
+            });
+            document.getElementById('guessInput').value = '';
+        }
+    </script>
+</body>
+</html>
