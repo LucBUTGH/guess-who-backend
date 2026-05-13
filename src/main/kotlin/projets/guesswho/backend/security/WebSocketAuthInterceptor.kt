@@ -20,8 +20,9 @@ class WebSocketAuthInterceptor(
 
     override fun preSend(message: Message<*>, channel: MessageChannel): Message<*> {
         val accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor::class.java)
+            ?: return message
 
-        if (accessor?.command == StompCommand.CONNECT) {
+        if (accessor.command == StompCommand.CONNECT) {
             val authHeader = accessor.getFirstNativeHeader("Authorization")
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 val token = authHeader.substring(7)
@@ -34,6 +35,12 @@ class WebSocketAuthInterceptor(
                         accessor.sessionAttributes?.put("username", player.username)
                     }
                 }
+            }
+        } else if (accessor.user == null) {
+            val username = accessor.sessionAttributes?.get("username") as? String
+            if (username != null) {
+                val userDetails = User(username, "", emptyList())
+                accessor.user = UsernamePasswordAuthenticationToken(userDetails, null, emptyList())
             }
         }
 

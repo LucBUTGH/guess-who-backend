@@ -1,10 +1,12 @@
 package projets.guesswho.backend.controller
 
 import org.springframework.messaging.handler.annotation.DestinationVariable
+import org.springframework.messaging.handler.annotation.MessageExceptionHandler
 import org.springframework.messaging.handler.annotation.MessageMapping
 import org.springframework.messaging.handler.annotation.Payload
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor
 import org.springframework.messaging.simp.SimpMessagingTemplate
+import org.springframework.messaging.simp.annotation.SendToUser
 import org.springframework.stereotype.Controller
 import projets.guesswho.backend.dto.ChatMessage
 import projets.guesswho.backend.dto.GameEvent
@@ -37,4 +39,9 @@ class GameWebSocketController(
         val event = GameEvent(type = "CHAT", sender = username, content = message.content)
         messagingTemplate.convertAndSend("/topic/game/$code", event)
     }
+
+    @MessageExceptionHandler
+    @SendToUser("/queue/errors")
+    fun handleException(e: Exception): GameEvent =
+        GameEvent(type = "ERROR", content = e.message)
 }
