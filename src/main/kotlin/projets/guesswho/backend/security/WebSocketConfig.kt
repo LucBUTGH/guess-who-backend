@@ -17,11 +17,10 @@ class WebSocketConfig(
 ) : WebSocketMessageBrokerConfigurer {
 
     override fun configureMessageBroker(config: MessageBrokerRegistry) {
-        val scheduler = ThreadPoolTaskScheduler().apply {
-            poolSize = 1
-            threadNamePrefix = "ws-heartbeat-"
-            initialize()
-        }
+        val scheduler = ThreadPoolTaskScheduler()
+        scheduler.poolSize = 1
+        scheduler.setThreadNamePrefix("ws-heartbeat-")
+        scheduler.initialize()
         config.enableSimpleBroker("/topic", "/queue")
             .setHeartbeatValue(longArrayOf(10000, 10000))
             .setTaskScheduler(scheduler)
