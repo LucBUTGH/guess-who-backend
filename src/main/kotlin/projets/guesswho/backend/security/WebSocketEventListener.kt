@@ -31,7 +31,7 @@ class WebSocketEventListener(
         val username = accessor.sessionAttributes?.get("username") as? String ?: return
         val future = scheduler.schedule(
             { gameService.abortGame(username) },
-            3L, TimeUnit.SECONDS
+            15L, TimeUnit.SECONDS
         )
         pendingAborts[username] = future
     }
